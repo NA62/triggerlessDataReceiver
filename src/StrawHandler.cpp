@@ -44,8 +44,8 @@ StrawHandler::~StrawHandler() {
 std::string StrawHandler::generateFileName(uint burstID) {
 	std::string storageDir = MyOptions::GetString(OPTION_STORAGE_DIR);
 	std::stringstream fileName;
-	fileName << "straw_data_run_" << dimListener.getRunNumber() << "_burst_"
-			<< burstID;
+	fileName << Options::GetString(OPTION_FILE_PREFIX) << "_"
+			<< dimListener.getRunNumber() << "_burst_" << burstID;
 	return DataDumper::generateFreeFilePath(fileName.str(), storageDir);
 }
 
@@ -59,6 +59,9 @@ void StrawHandler::run() {
 		zmq::message_t msg;
 		pullSocket_->recv(&msg);
 
+		/*
+		 * First part of the message is burstID
+		 */
 		uint burstID = (uint) *((uint*) msg.data());
 
 		if (!msg.more()) {

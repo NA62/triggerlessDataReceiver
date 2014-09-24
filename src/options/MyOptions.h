@@ -17,6 +17,8 @@
 
 #define OPTION_STORAGE_DIR (char*)"storageDir"
 
+#define OPTION_FILE_PREFIX (char*)"filePrefix"
+
 namespace na62 {
 class MyOptions: public Options {
 public:
@@ -36,6 +38,10 @@ public:
 
 		(OPTION_STORAGE_DIR, po::value<std::string>()->required(),
 				"Path to the directory where all burst files should be written to.")
+
+		(OPTION_FILE_PREFIX,
+				po::value<std::string>()->default_value("straw_data"),
+				"Prefix used for the name of all written burst-files.")
 
 				;
 
