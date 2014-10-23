@@ -54,11 +54,23 @@ StrawHandler::~StrawHandler() {
 }
 
 std::string StrawHandler::generateFileName(uint burstID) {
+
+	uint sob = dimListener_.getSobTimeStamp();
+	uint run = dimListener_.getRunNumber();
+	struct tm tstruct;
+	char buf[32];
+	tstruct = *localtime((time_t*) &sob);
+	// Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
+	// for more information about date/time format
+	strftime(buf, sizeof(buf), "%Y-%m-%d_%X", &tstruct);
+
+	char fileName[64];
+	sprintf(fileName, "%u-%s-%06u-%04u.dat", sob, buf, run, burstID);
+
 	std::string storageDir = MyOptions::GetString(OPTION_STORAGE_DIR);
-	std::stringstream fileName;
-	fileName << Options::GetString(OPTION_FILE_PREFIX) << "_"
-			<< dimListener_.getRunNumber() << "_burst_" << burstID;
-	return DataDumper::generateFreeFilePath(fileName.str(), storageDir);
+	std::stringstream filePath;
+	filePath << Options::GetString(OPTION_FILE_PREFIX) << "_" << fileName;
+	return DataDumper::generateFreeFilePath(filePath.str(), storageDir);
 }
 
 void StrawHandler::run() {
