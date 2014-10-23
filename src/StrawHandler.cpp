@@ -18,6 +18,7 @@
 #include <dim/DimListener.h>
 #include <utils/DataDumper.h>
 #include <fstream>
+#include <thread>
 
 #include "options/MyOptions.h"
 
@@ -27,14 +28,25 @@ struct UDP_HDR;
 
 namespace na62 {
 
-StrawHandler::StrawHandler() {
+StrawHandler::StrawHandler() :
+		numberOfFramesReceived_(0) {
 	std::stringstream address;
 	address << "tcp://*:" << MyOptions::GetInt(OPTION_STRAW_PORT);
 	pullSocket_ = ZMQHandler::GenerateSocket(ZMQ_PULL);
 	pullSocket_->bind(address.str().c_str());
 
-	dimListener.startServer();
+	dimListener_.startServer();
 	usleep(100000);
+
+	monitorThread_ =
+			new std::thread(
+					[this]() {
+						while(true) {
+							sleep(1);
+							std::cout << "Number of frames received: " << numberOfFramesReceived_<<std::endl;
+						}
+					});
+
 }
 
 StrawHandler::~StrawHandler() {
@@ -45,13 +57,13 @@ std::string StrawHandler::generateFileName(uint burstID) {
 	std::string storageDir = MyOptions::GetString(OPTION_STORAGE_DIR);
 	std::stringstream fileName;
 	fileName << Options::GetString(OPTION_FILE_PREFIX) << "_"
-			<< dimListener.getRunNumber() << "_burst_" << burstID;
+			<< dimListener_.getRunNumber() << "_burst_" << burstID;
 	return DataDumper::generateFreeFilePath(fileName.str(), storageDir);
 }
 
 void StrawHandler::run() {
 	uint lastBurstID = 0xFFFFFFFF;
-	std::string fileName = generateFileName(lastBurstID);
+	std::string fileName = "";
 
 	std::ofstream myfile;
 
@@ -71,12 +83,14 @@ void StrawHandler::run() {
 			continue;
 		}
 
+		numberOfFramesReceived_++;
+
 		if (burstID != lastBurstID) {
 			fileName = generateFileName(burstID);
 			lastBurstID = burstID;
 
 			std::cout << "Received data from new burst " << burstID
-					<< ". Now writing file " << fileName << std::endl;
+					<< ". Now writing to file " << fileName << std::endl;
 
 			if (myfile.is_open()) {
 				myfile.close();
@@ -91,8 +105,8 @@ void StrawHandler::run() {
 		 */
 		pullSocket_->recv(&msg);
 
-		const char* rawData = (const char*) msg.data() + sizeof(struct UDP_HDR);
-		const u_int dataLength = msg.size() - sizeof(struct UDP_HDR);
+		const char* rawData = (const char*) msg.data();
+		const u_int dataLength = msg.size();
 
 		if (!myfile.good()) {
 			std::cerr << "Unable to write to file " << fileName << std::endl;

@@ -16,6 +16,10 @@ namespace zmq {
 class socket_t;
 } /* namespace zmq */
 
+namespace std {
+class thread;
+}
+
 namespace na62 {
 
 class StrawHandler {
@@ -31,7 +35,11 @@ public:
 private:
 	zmq::socket_t* pullSocket_;
 	std::string generateFileName(uint burstID);
-	dim::DimListener dimListener;
+	dim::DimListener dimListener_;
+
+	uint numberOfFramesReceived_;
+
+	std::thread* monitorThread_;
 };
 
 } /* namespace na62 */

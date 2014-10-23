@@ -30,7 +30,7 @@ public:
 
 		(OPTION_CONFIG_FILE,
 				po::value<std::string>()->default_value(
-						"/etc/na62RawDataReceiver.cfg"),
+						"/etc/na62TriggerlessDataReceiver.cfg"),
 				"Config file for the options shown here")
 
 		(OPTION_STRAW_PORT, po::value<int>()->default_value(58917),
