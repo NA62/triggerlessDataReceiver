@@ -72,7 +72,7 @@ std::string StrawHandler::generateFileName(uint burstID) {
 	std::stringstream filePath;
 	filePath << Options::GetString(OPTION_FILE_PREFIX) << "_" << fileName;
 	//return DataDumper::generateFreeFilePath(filePath.str(), storageDir);
-	return filePath.str();
+	return storageDir + "/" + filePath.str();
 }
 
 void StrawHandler::run() {
