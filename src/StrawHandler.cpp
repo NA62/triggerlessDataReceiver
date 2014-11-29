@@ -100,7 +100,7 @@ void StrawHandler::run() {
 		std::shared_ptr<std::ofstream> myfile;
 
 		if (fileAndEventInfoByBurstID.find(burstID)
-				!= fileAndEventInfoByBurstID.end()) {
+				== fileAndEventInfoByBurstID.end()) {
 			EventInfo info = { burstID, dimListener_.getRunNumber(),
 								dimListener_.getSobTimeStamp() };
 
