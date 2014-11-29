@@ -2,7 +2,7 @@
  * StrawHandler.cpp
  *
  *  Created on: Sep 11, 2014
- *      Author: root
+ *      Author: Jonas Kunze (kunze.jonas@gmail.com)
  */
 
 #include "StrawHandler.h"
@@ -32,7 +32,7 @@ StrawHandler::StrawHandler() :
 		numberOfFramesReceived_(0) {
 	std::stringstream address;
 	address << "tcp://*:" << MyOptions::GetInt(OPTION_STRAW_PORT);
-	pullSocket_ = ZMQHandler::GenerateSocket(ZMQ_PULL);
+	pullSocket_ = ZMQHandler::GenerateSocket("StrawReceiver", ZMQ_PULL);
 	pullSocket_->bind(address.str().c_str());
 
 	dimListener_.startServer();
@@ -43,7 +43,7 @@ StrawHandler::StrawHandler() :
 					[this]() {
 						while(true) {
 							sleep(1);
-							std::cout << "Number of frames received: " << numberOfFramesReceived_<<std::endl;
+							LOG_INFO << "Number of frames received: " << numberOfFramesReceived_<<ENDL;
 						}
 					});
 
@@ -51,6 +51,7 @@ StrawHandler::StrawHandler() :
 
 StrawHandler::~StrawHandler() {
 	ZMQHandler::DestroySocket(pullSocket_);
+	pullSocket_ = nullptr;
 }
 
 std::string StrawHandler::generateFileName(uint burstID) {
@@ -58,7 +59,8 @@ std::string StrawHandler::generateFileName(uint burstID) {
 	std::stringstream fileName;
 	fileName << Options::GetString(OPTION_FILE_PREFIX) << "_"
 			<< dimListener_.getRunNumber() << "_burst_" << burstID;
-	return DataDumper::generateFreeFilePath(fileName.str(), storageDir);
+	//return DataDumper::generateFreeFilePath(fileName.str(), storageDir);
+	return fileName.str();
 }
 
 void StrawHandler::run() {
@@ -77,9 +79,9 @@ void StrawHandler::run() {
 		uint burstID = (uint) *((uint*) msg.data());
 
 		if (!msg.more()) {
-			std::cerr
+			LOG_ERROR
 					<< "Received single message. Expecting multimessage with burstID as first message and data as second message!"
-					<< std::endl;
+					<< ENDL;
 			continue;
 		}
 
@@ -89,8 +91,8 @@ void StrawHandler::run() {
 			fileName = generateFileName(burstID);
 			lastBurstID = burstID;
 
-			std::cout << "Received data from new burst " << burstID
-					<< ". Now writing to file " << fileName << std::endl;
+			LOG_INFO << "Received data from new burst " << burstID
+					<< ". Now writing to file " << fileName << ENDL;
 
 			if (myfile.is_open()) {
 				myfile.close();
@@ -109,7 +111,7 @@ void StrawHandler::run() {
 		const u_int dataLength = msg.size();
 
 		if (!myfile.good()) {
-			std::cerr << "Unable to write to file " << fileName << std::endl;
+			LOG_ERROR << "Unable to write to file " << fileName << ENDL;
 			// carry on to free the memory. myfile.write will not throw!
 		} else {
 			myfile.write(rawData, dataLength);
