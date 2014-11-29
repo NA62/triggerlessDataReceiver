@@ -11,6 +11,7 @@
 #include <dim/DimListener.h>
 #include <sys/types.h>
 #include <string>
+#include "EventInfo.h"
 
 namespace zmq {
 class socket_t;
@@ -34,7 +35,7 @@ public:
 
 private:
 	zmq::socket_t* pullSocket_;
-	std::string generateFileName(uint burstID);
+	std::string generateFileName(EventInfo info);
 	dim::DimListener dimListener_;
 
 	uint numberOfFramesReceived_;

@@ -19,8 +19,10 @@
 #include <utils/DataDumper.h>
 #include <fstream>
 #include <thread>
+#include <map>
 
 #include "options/MyOptions.h"
+#include "EventInfo.h"
 
 namespace na62 {
 struct UDP_HDR;
@@ -54,19 +56,17 @@ StrawHandler::~StrawHandler() {
 	pullSocket_ = nullptr;
 }
 
-std::string StrawHandler::generateFileName(uint burstID) {
-
-	uint sob = dimListener_.getSobTimeStamp();
-	uint run = dimListener_.getRunNumber();
+std::string StrawHandler::generateFileName(EventInfo info) {
 	struct tm tstruct;
 	char buf[32];
-	tstruct = *localtime((time_t*) &sob);
+	tstruct = *localtime((time_t*) &(info.sob));
 	// Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
 	// for more information about date/time format
 	strftime(buf, sizeof(buf), "%Y-%m-%d_%X", &tstruct);
 
 	char fileName[64];
-	sprintf(fileName, "%u-%s-%06u-%04u.dat", sob, buf, run, burstID);
+	sprintf(fileName, "%u-%s-%06u-%04u.dat", info.sob, buf, info.runNumber,
+			info.burstID);
 
 	std::string storageDir = MyOptions::GetString(OPTION_STORAGE_DIR);
 	std::stringstream filePath;
@@ -76,10 +76,8 @@ std::string StrawHandler::generateFileName(uint burstID) {
 }
 
 void StrawHandler::run() {
-	uint lastBurstID = 0xFFFFFFFF;
-	std::string fileName = "";
 
-	std::ofstream myfile;
+	std::map<uint, std::pair<std::shared_ptr<std::ofstream>, EventInfo>> fileAndEventInfoByBurstID;
 
 	while (ZMQHandler::IsRunning()) {
 		zmq::message_t msg;
@@ -99,19 +97,40 @@ void StrawHandler::run() {
 
 		numberOfFramesReceived_++;
 
-		if (burstID != lastBurstID) {
-			fileName = generateFileName(burstID);
-			lastBurstID = burstID;
+		std::shared_ptr<std::ofstream> myfile;
+
+		if (fileAndEventInfoByBurstID.find(burstID)
+				== fileAndEventInfoByBurstID.end()) {
+			EventInfo info = { burstID, dimListener_.getRunNumber(),
+								dimListener_.getSobTimeStamp() };
+
+			std::string fileName = generateFileName(info);
 
 			LOG_INFO << "Received data from new burst " << burstID
 					<< ". Now writing to file " << fileName << ENDL;
 
-			if (myfile.is_open()) {
-				myfile.close();
+			myfile = std::make_shared<std::ofstream>();
+			myfile->open(fileName.data(),
+					std::ios::out | std::ios::app | std::ios::binary);
+
+
+			fileAndEventInfoByBurstID[burstID] = std::make_pair(myfile, info);
+
+			/*
+			 * Close old file handles
+			 */
+			if (fileAndEventInfoByBurstID.find(burstID - 10)
+					!= fileAndEventInfoByBurstID.end()) {
+				std::shared_ptr<std::ofstream> file =
+						fileAndEventInfoByBurstID[burstID - 10].first;
+				if (file->is_open()) {
+					file->close();
+				}
+				fileAndEventInfoByBurstID.erase(burstID - 10);
 			}
 
-			myfile.open(fileName.data(),
-					std::ios::out | std::ios::app | std::ios::binary);
+		} else {
+			myfile = fileAndEventInfoByBurstID[burstID].first;
 		}
 
 		/*
@@ -122,15 +141,12 @@ void StrawHandler::run() {
 		const char* rawData = (const char*) msg.data();
 		const u_int dataLength = msg.size();
 
-		if (!myfile.good()) {
-			LOG_ERROR << "Unable to write to file " << fileName << ENDL;
+		if (!myfile->good()) {
+			LOG_ERROR << "Unable to write to file " << generateFileName(fileAndEventInfoByBurstID[burstID].second) << ENDL;
 			// carry on to free the memory. myfile.write will not throw!
 		} else {
-			myfile.write(rawData, dataLength);
+			myfile->write(rawData, dataLength);
 		}
-	}
-	if (myfile.is_open()) {
-		myfile.close();
 	}
 }
 
