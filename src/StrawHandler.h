@@ -2,7 +2,7 @@
  * StrawHandler.h
  *
  *  Created on: Sep 11, 2014
- *      Author: root
+ *      Author: Jonas Kunze (kunze.jonas@gmail.com)
  */
 
 #ifndef STRAWHANDLER_H_

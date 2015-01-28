@@ -2,7 +2,7 @@
  * EventInfo.h
  *
  *  Created on: Nov 29, 2014
- *      Author: root
+ *      Author: Jonas Kunze (kunze.jonas@gmail.com)
  */
 
 #ifndef STRUCTS_EVENTINFO_H_
