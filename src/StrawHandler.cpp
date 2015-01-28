@@ -100,9 +100,30 @@ void StrawHandler::run() {
 		std::shared_ptr<std::ofstream> myfile;
 
 		if (fileAndEventInfoByBurstID.find(burstID)
+				!= fileAndEventInfoByBurstID.end()
+				&& fileAndEventInfoByBurstID[burstID].second.lastEventReceivedTimer.elapsed().wall
+						> 30E9/*30s*/) {
+			/*
+			 * Close old file handles
+			 */
+			EventInfo info = fileAndEventInfoByBurstID[burstID].second;
+			std::cout << "Timeout: Deleting info of burst " << burstID << ": "
+					<< info.burstID << "\t" << info.runNumber << "\t" << info.sob
+					<< std::endl;
+
+			std::shared_ptr<std::ofstream> file =
+					fileAndEventInfoByBurstID[burstID].first;
+			if (file->is_open()) {
+				file->close();
+			}
+			fileAndEventInfoByBurstID.erase(burstID);
+		}
+
+		if (fileAndEventInfoByBurstID.find(burstID)
 				== fileAndEventInfoByBurstID.end()) {
 			EventInfo info = { burstID, dimListener_.getRunNumber(),
-								dimListener_.getSobTimeStamp() };
+					dimListener_.getSobTimeStamp() };
+			info.lastEventReceivedTimer.start();
 
 			std::string fileName = generateFileName(info);
 
@@ -113,22 +134,7 @@ void StrawHandler::run() {
 			myfile->open(fileName.data(),
 					std::ios::out | std::ios::app | std::ios::binary);
 
-
 			fileAndEventInfoByBurstID[burstID] = std::make_pair(myfile, info);
-
-			/*
-			 * Close old file handles
-			 */
-			if (fileAndEventInfoByBurstID.find(burstID - 10)
-					!= fileAndEventInfoByBurstID.end()) {
-				std::shared_ptr<std::ofstream> file =
-						fileAndEventInfoByBurstID[burstID - 10].first;
-				if (file->is_open()) {
-					file->close();
-				}
-				fileAndEventInfoByBurstID.erase(burstID - 10);
-			}
-
 		} else {
 			myfile = fileAndEventInfoByBurstID[burstID].first;
 		}
@@ -142,7 +148,9 @@ void StrawHandler::run() {
 		const u_int dataLength = msg.size();
 
 		if (!myfile->good()) {
-			LOG_ERROR << "Unable to write to file " << generateFileName(fileAndEventInfoByBurstID[burstID].second) << ENDL;
+			LOG_ERROR << "Unable to write to file "
+					<< generateFileName(
+							fileAndEventInfoByBurstID[burstID].second) << ENDL;
 			// carry on to free the memory. myfile.write will not throw!
 		} else {
 			myfile->write(rawData, dataLength);
